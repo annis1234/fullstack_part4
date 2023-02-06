@@ -1,82 +1,91 @@
-const mongoose = require('mongoose')
 const supertest = require('supertest')
+const mongoose = require('mongoose')
+const bcrypt = require('bcrypt')
+
 const app = require('../app')
 const api = supertest(app)
 const helper = require('./test_helper')
 const Blog = require('../models/blog')
-const bcrypt = require('bcrypt')
 const User = require('../models/user')
 
-beforeEach(async() => {
-    await Blog.deleteMany({})
-    await Blog.insertMany(helper.initialBlogs)
-})
+describe('when there is initially some notes saved', () => {
+    beforeEach(async() => {
+        await Blog.deleteMany({})
+        await Blog.insertMany(helper.initialBlogs)
+    })
 
-test('blogs are returned as json', async() => {
-    await api
-    .get('/api/blogs')
-    .expect(200)
-    .expect('Content-Type', /application\/json/)
-})
+    test('all blogs are returned', async() => {
+        const response = await api.get('/api/blogs')
+        expect(response.body).toHaveLength(helper.initialBlogs.length)
+    })
 
-test('all blogs are returned', async() => {
-    const response = await api.get('/api/blogs')
-    expect(response.body).toHaveLength(helper.initialBlogs.length)
-})
-
-test('field id is correct', async() => {
-    const response = await api.get('/api/blogs')
-    expect(response.body[0].id).toBeDefined()
-})
-
-test('blog is added', async() => {
-    const newBlog = {
-        title: "test",
-        author: "test",
-        url: "test",
-        likes: 2
-    }
-    await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-
-const blogsAtEnd = await helper.blogsInDb()
-expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length +1)
-
-})
-
-test('likes is 0', async() => {
-    const newBlog = {
-        title: "test",
-        author: "test",
-        url: "test",
+    test('blogs are returned as json', async() => {
+        await api
+        .get('/api/blogs')
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+    })
     
-    }
-    await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
+    test('field id is correct', async() => {
+        const response = await api.get('/api/blogs')
+        expect(response.body[0].id).toBeDefined()
+    })
 
-    const response = await api.get('/api/blogs')
-    expect(response.body[3].likes).toEqual(0)
 })
 
-test('blog without title or url is not added', async() => {
-    const newBlog = {
-        author: "test2",
-        likes: 2
-    }
+describe('addition of a blog', () => {
 
-    await api
+    test('blog without title or url is not added', async() => {
+        const newBlog = {
+            author: "test2",
+            likes: 2
+        }
+    
+        await api
+            .post('/api/blogs')
+            .send(newBlog)
+            .expect(400)
+    
+        const blogsAtEnd = await helper.blogsInDb()
+        expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length)
+    
+    }) 
+
+    test('blog is added', async() => {
+        const newBlog = {
+            title: "test",
+            author: "test",
+            url: "test",
+            likes: 2
+        }
+        await api
         .post('/api/blogs')
         .send(newBlog)
-        .expect(400)
-
+        .expect(201)
+    
     const blogsAtEnd = await helper.blogsInDb()
-    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length)
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length +1)
+    
+    })
 
-}) 
+    test('likes is 0', async() => {
+        const newBlog = {
+            title: "test",
+            author: "test",
+            url: "test",
+        
+        }
+        await api
+        .post('/api/blogs')
+        .send(newBlog)
+        .expect(201)
+    
+        const response = await api.get('/api/blogs')
+        expect(response.body[helper.initialBlogs.length+1].likes).toEqual(0)
+    })
+
+})
+
 
 describe('delete blog', () => {
 
@@ -89,7 +98,7 @@ describe('delete blog', () => {
             .expect(204)
     
         const blogsAtEnd = await helper.blogsInDb()
-        expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length -1)
+        expect(blogsAtEnd).toHaveLength(blogsAtStart.length -1)
 
 })
 
@@ -115,9 +124,9 @@ describe('update blog', () => {
         const updatedBlog = blogsAtEnd[0]
             
         expect(updatedBlog.likes).toEqual(20)
-    })
+        })
 
-})
+    })
 
 })
 
